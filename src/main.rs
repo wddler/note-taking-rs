@@ -85,6 +85,30 @@ async fn get_notes(data: web::Data<AppState>) -> impl Responder {
 //     "Hello world!"
 // }
 
+// Get a note by id
+#[get("/notes/{id}")]
+async fn get_note(id: web::Path<u32>, data: web::Data<AppState>) -> Result<Note, ErrNoId> {
+   let note_id: u32 = *id;
+   let notes = data.notes.lock().unwrap();
+
+   let note: Vec<_> = notes.iter()
+                               .filter(|x| x.id == note_id)
+                               .collect();
+
+   if !note.is_empty() {
+       Ok(Note {
+           id: note[0].id,
+           text: String::from(&note[0].text)
+       })
+   } else {
+       let response = ErrNoId {
+           id: note_id,
+           err: String::from("Note not found")
+       };
+       Err(response)
+   }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
@@ -104,8 +128,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(app_state.clone())
             .service(get_notes)
+            .service(get_note)
             .route("/health_check", web::get().to(health_check))
-            // .route("/index.html", web::get().to(index))
     })
     .bind(("127.0.0.1", 8000))?
     .run()
@@ -199,5 +223,31 @@ mod tests {
         assert!(resp.status().is_client_error());
     }
 
+    #[actix_web::test]
+    async fn test_get_note_ok() {
+        let test_notes = vec![
+            Note {
+                id: 1,
+                text: String::from("actix-web seems to be a handy back-end framework")
+            },
+            Note {
+                id: 2,
+                text: String::from("Web application is supposed to be properly tested")
+            }
+        ];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(get_note)).await;
+        let req = test::TestRequest::get().uri("/notes/2").to_request();
+        let resp = test::call_service(&app, req).await;
+        println!("resp: {:?}", resp);
+        assert!(resp.status().is_success());
+        let resp_body = test::read_body(resp).await;
+        let note: Note = serde_json::from_slice(&resp_body).unwrap();
+        assert_eq!(2, note.id)
+    }
 
 }
