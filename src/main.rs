@@ -109,6 +109,41 @@ async fn get_note(id: web::Path<u32>, data: web::Data<AppState>) -> Result<Note,
    }
 }
 
+// Update note by id
+#[put("/notes/{id}")]
+async fn update_note(id: web::Path<u32>, req: web::Json<Note>, data: web::Data<AppState>) -> Result<HttpResponse, ErrNoId> {
+   let note_id: u32 = *id;
+
+   let new_note = Note {
+       id: req.id,
+       text: String::from(&req.text),
+   };
+
+   let mut notes = data.notes.lock().unwrap();
+
+   let id_index = notes.iter()
+                         .position(|x| x.id == note_id);
+
+   match id_index {
+       Some(id) => {
+           let response = serde_json::to_string(&new_note).unwrap();
+           notes[id] = new_note;
+           Ok(HttpResponse::Ok()
+               .content_type(ContentType::json())
+               .body(response)
+           )
+       },
+       None => {
+           let response = ErrNoId {
+               id: note_id,
+               err: String::from("note not found")
+           };
+           Err(response)
+       }
+   }
+}
+
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
@@ -129,6 +164,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(app_state.clone())
             .service(get_notes)
             .service(get_note)
+            .service(update_note)
             .route("/health_check", web::get().to(health_check))
     })
     .bind(("127.0.0.1", 8000))?
@@ -140,7 +176,7 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use actix_web::{
-        http::{self, header::ContentType, Method},
+        http::{self, header::{ContentType, CONTENT_TYPE}, Method},
         test,
     };
 
@@ -243,11 +279,90 @@ mod tests {
                 .service(get_note)).await;
         let req = test::TestRequest::get().uri("/notes/2").to_request();
         let resp = test::call_service(&app, req).await;
-        println!("resp: {:?}", resp);
+        // println!("resp: {:?}", resp);
         assert!(resp.status().is_success());
         let resp_body = test::read_body(resp).await;
         let note: Note = serde_json::from_slice(&resp_body).unwrap();
-        assert_eq!(2, note.id)
+        assert_eq!(2, note.id);
+    }
+
+    #[actix_web::test]
+    async fn test_get_note_not_ok() {
+        let test_notes = vec![
+        ];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(get_note)).await;
+        let req = test::TestRequest::get().uri("/notes/2").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+
+    #[actix_web::test]
+    async fn test_update_note_ok() {
+        let test_notes = vec![
+            Note {
+                id: 1,
+                text: String::from("actix-web seems to be a handy back-end framework")
+            },
+        ];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(update_note)).await;
+        let payload = serde_json::json!({
+            "id": 1 as u32,
+            "text": "changed note",
+        });
+        let req = test::TestRequest::put()
+        .uri("/notes/1")
+        .set_json(&payload)
+        .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        // println!("resp: {:?}", resp);
+        let resp_body = test::read_body(resp).await;
+        // println!("resp_body: {:?}", resp_body);   
+        let note: Note = serde_json::from_slice(&resp_body).unwrap();
+        assert_eq!(1, note.id);
+        assert_eq!("changed note", note.text);
+    }
+
+    #[actix_web::test]
+    async fn test_update_note_not_ok() {
+        let test_notes = vec![
+            Note {
+                id: 1,
+                text: String::from("actix-web seems to be a handy back-end framework")
+            },
+        ];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(update_note)).await;
+        let payload = serde_json::json!({
+            "id": 2 as u32,
+            "text": "changed note",
+        });
+        let req = test::TestRequest::put()
+        .uri("/notes/2")
+        .set_json(&payload)
+        .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+        // println!("resp: {:?}", resp);
+        // let resp_body = test::read_body(resp).await;
+        // println!("resp_body: {:?}", resp_body);   
+        // let note: Note = serde_json::from_slice(&resp_body).unwrap();
+        // assert_eq!(1, note.id);
+        // assert_eq!("changed note", note.text);
     }
 
 }
