@@ -143,6 +143,23 @@ async fn update_note(id: web::Path<u32>, req: web::Json<Note>, data: web::Data<A
    }
 }
 
+// Create a note
+#[post("/notes")]
+async fn take_note(req: web::Json<Note>, data: web::Data<AppState>) -> impl Responder {
+   let new_note = Note {
+       id: req.id,
+       text: String::from(&req.text),
+   };
+
+   let mut notes = data.notes.lock().unwrap();
+
+   let response = serde_json::to_string(&new_note).unwrap();
+
+   notes.push(new_note);
+   HttpResponse::Created()
+       .content_type(ContentType::json())
+       .body(response)
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -165,6 +182,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_notes)
             .service(get_note)
             .service(update_note)
+            .service(take_note)
             .route("/health_check", web::get().to(health_check))
     })
     .bind(("127.0.0.1", 8000))?
@@ -176,7 +194,7 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use actix_web::{
-        http::{self, header::{ContentType, CONTENT_TYPE}, Method},
+        http::{self, header::ContentType},
         test,
     };
 
@@ -363,6 +381,59 @@ mod tests {
         // let note: Note = serde_json::from_slice(&resp_body).unwrap();
         // assert_eq!(1, note.id);
         // assert_eq!("changed note", note.text);
+    }
+
+    #[actix_web::test]
+    async fn test_take_note_ok() {
+        let test_notes = vec![];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(take_note)
+                .service(get_note))
+                .await;
+        let payload = serde_json::json!({
+            "id": 1 as u32,
+            "text": "Take a new note",
+        });
+        let req = test::TestRequest::post()
+        .uri("/notes")
+        .set_json(&payload)
+        .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        
+        let req = test::TestRequest::get().uri("/notes/1").to_request();
+        let resp = test::call_service(&app, req).await;
+        // println!("resp: {:?}", resp);
+        assert!(resp.status().is_success());
+        let resp_body = test::read_body(resp).await;
+        let note: Note = serde_json::from_slice(&resp_body).unwrap();
+        assert_eq!(1, note.id);
+    }
+
+    #[actix_web::test]
+    async fn test_take_note_not_ok() {
+        let test_notes = vec![];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(take_note))
+                .await;
+        let payload = serde_json::json!({
+            "id": 1 as u32,
+            "text": "Take a new note",
+        });
+        let req = test::TestRequest::put()
+        .uri("/notes")
+        .set_json(&payload)
+        .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
     }
 
 }
