@@ -161,6 +161,30 @@ async fn take_note(req: web::Json<Note>, data: web::Data<AppState>) -> impl Resp
        .body(response)
 }
 
+// Delete a note by id
+#[delete("/notes/{id}")]
+async fn delete_note(id: web::Path<u32>, data: web::Data<AppState>) -> Result<Note, ErrNoId> {
+   let note_id: u32 = *id;
+   let mut notes = data.notes.lock().unwrap();
+
+   let id_index = notes.iter()
+                         .position(|x| x.id == note_id);
+
+   match id_index {
+       Some(id) => {
+           let deleted_note = notes.remove(id);
+           Ok(deleted_note)
+       },
+       None => {
+           let response = ErrNoId {
+               id: note_id,
+               err: String::from("note not found")
+           };
+           Err(response)
+       }
+   }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(AppState {
@@ -183,6 +207,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_note)
             .service(update_note)
             .service(take_note)
+            .service(delete_note)
             .route("/health_check", web::get().to(health_check))
     })
     .bind(("127.0.0.1", 8000))?
@@ -432,6 +457,45 @@ mod tests {
         .uri("/notes")
         .set_json(&payload)
         .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+
+    #[actix_web::test]
+    async fn test_delete_note_ok() {
+        let test_notes = vec![
+            Note {
+                id: 1,
+                text: String::from("actix-web seems to be a handy back-end framework")
+            },
+        ];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(delete_note)
+                .service(get_notes)
+                ).await;
+        let req = test::TestRequest::delete().uri("/notes/1").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let req = test::TestRequest::get().uri("/notes/1").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+
+    #[actix_web::test]
+    async fn test_delete_note_not_ok() {
+        let test_notes = vec![];
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    notes: Mutex::new(test_notes.clone())
+                }))
+                .service(delete_note)
+                ).await;
+        let req = test::TestRequest::delete().uri("/notes/1").to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_client_error());
     }
