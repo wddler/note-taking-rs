@@ -1,3 +1,3 @@
 # note-taking-rs
 
-![example workflow](https://github.com/github/docs/actions/workflows/main.yml/badge.svg
+![rust-ci](https://github.com/github/docs/actions/workflows/rust.yml/badge.svg
