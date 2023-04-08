@@ -1,3 +1,3 @@
 # note-taking-rs
 
-![rust-ci](https://github.com/github/docs/actions/workflows/rust.yml/badge.svg
+![rust-ci](https://github.com/wddler/note-taking-rs/blob/main/.github/workflows/rust.yml)
