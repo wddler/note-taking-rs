@@ -1,6 +1,7 @@
 // The code below is an adapted and extended version of the code from Josh Amata's article
 // "Building REST APIs in Rust with Actix Web", 2022, https://www.vultr.com/docs/building-rest-apis-in-rust-with-actix-web
 
+use actix_files::NamedFile;
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::http::{Method, StatusCode};
@@ -8,14 +9,12 @@ use actix_web::{
     delete, get, post, put, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
     ResponseError, Result,
 };
-use actix_files::NamedFile;
-
 
 use serde::{Deserialize, Serialize};
 
 use std::fmt::Display;
-use std::sync::Mutex;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Note {
