@@ -6,13 +6,16 @@ use actix_web::http::header::ContentType;
 use actix_web::http::{Method, StatusCode};
 use actix_web::{
     delete, get, post, put, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
-    ResponseError,
+    ResponseError, Result,
 };
+use actix_files::NamedFile;
+
 
 use serde::{Deserialize, Serialize};
 
 use std::fmt::Display;
 use std::sync::Mutex;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Note {
@@ -62,6 +65,11 @@ impl Display for ErrNoId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
+}
+
+async fn index(_req: HttpRequest) -> Result<NamedFile> {
+    let path: PathBuf = "./static/index.html".parse().unwrap();
+    Ok(NamedFile::open(path)?)
 }
 
 async fn health_check(req: HttpRequest) -> HttpResponse {
@@ -207,6 +215,7 @@ async fn main() -> std::io::Result<()> {
             .service(take_note)
             .service(delete_note)
             .route("/health_check", web::get().to(health_check))
+            .route("/", web::get().to(index))
     })
     .bind(("127.0.0.1", 8000))?
     .run()
