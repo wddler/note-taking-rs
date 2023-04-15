@@ -1,0 +1,284 @@
+<!-- Front-end is developed with the help of ChatGPT -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Personal notes</title>
+  <style>
+    /* General styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f2f2f2;
+    }
+
+    /* Header styles */
+    header {
+      background-color: #4CAF50;
+      color: #fff;
+      padding: 20px;
+    }
+
+    header h1 {
+      margin: 0;
+    }
+
+    /* Form styles */
+    form {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin: 20px;
+    }
+
+    label {
+      margin-right: 10px;
+    }
+
+    input[type="text"] {
+      border: 1px solid #ccc;
+      padding: 5px;
+      font-size: 16px;
+      background-color: #fff;
+    }
+
+    #id-field {
+      width: 3%;
+      margin-right: 10px;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+
+    /* Content styles */
+    #content {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border: 1px solid #ccc;
+      margin: 20px;
+      background-color: #fff;
+    }
+
+    .note {
+      background-color: #e6ffe6;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .note p {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .note button {
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      padding: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+
+    .note button:first-child {
+      margin-right: 15px;
+    }
+
+    .note button:hover {
+      background-color: #357a38;
+    }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Personal Notes</h1>
+  </header>
+
+  <form>
+    <label for="text-field">New note:</label>
+    <input type="text" id="text-field" name="text-field">
+    <label for="id-field">ID:</label>
+    <input type="text" id="id-field" name="id-field">
+    <button type="button" onclick="saveNote()">Save note</button>
+  </form>
+
+  <div id="content"></div>
+  <script>
+    // Create a new XMLHttpRequest object
+    const xhr = new XMLHttpRequest();
+
+    // Define the request endpoint
+    const url = "/notes";
+
+    // Define the request method
+    const method = "GET";
+
+    // Define the request headers
+    const headers = {
+      "Content-Type": "application/json",
+    };
+
+    // Define the request body (if needed)
+    const body = JSON.stringify({
+      // foo: "bar",
+    });
+
+    // Define the callback function to handle the response
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // Parse the response JSON data
+        const data = JSON.parse(xhr.responseText);
+
+        // Generate a sticky note for each object in the response data
+        const contentDiv = document.getElementById("content");
+        data.forEach((item) => {
+          const noteDiv = document.createElement("div");
+          noteDiv.style.backgroundColor = "#ffd";
+          noteDiv.style.padding = "10px";
+          noteDiv.style.marginBottom = "10px";
+
+          const noteID = document.createElement("div");
+          noteID.textContent = `#${item.id}`;
+          noteID.style.color = "#888"
+          noteDiv.appendChild(noteID);
+
+          const textDiv = document.createElement("div");
+          textDiv.textContent = item.text;
+          noteDiv.appendChild(textDiv);
+
+          const buttonDiv = document.createElement("div");
+          const editButton = document.createElement("button");
+          editButton.textContent = "Edit";
+
+          editButton.onclick = function () {
+            const staticText = textDiv.textContent;
+            textDiv.innerHTML = "";
+            const inputField = document.createElement("input");
+            inputField.type = "text";
+            inputField.value = staticText;
+            textDiv.appendChild(inputField);
+
+            buttonDiv.removeChild(deleteButton); // remove the "Delete" button
+
+            buttonDiv.removeChild(editButton);
+            const saveButton = document.createElement("button");
+            saveButton.textContent = "Save";
+            saveButton.onclick = function () {
+              const updatedText = inputField.value;
+              updateNote(item.id, updatedText);
+            };
+            buttonDiv.appendChild(saveButton);
+          };
+
+          buttonDiv.appendChild(editButton);
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "Delete";
+          buttonDiv.appendChild(deleteButton);
+
+          noteDiv.appendChild(buttonDiv);
+          contentDiv.appendChild(noteDiv);
+
+          deleteButton.addEventListener("click", function () {
+            deleteNoteById(item.id);
+          });
+
+        });
+      } else {
+        console.error("Request failed with status:", xhr.status);
+      }
+    };
+
+    // Open and send the request
+    xhr.open(method, url);
+    xhr.setRequestHeader("Content-Type", headers["Content-Type"]);
+    xhr.send(body);
+
+    function saveNote() {
+      // Get the input field values
+      var textValue = document.getElementById("text-field").value;
+      var idValue = document.getElementById("id-field").value;
+
+      // Create a JSON object with the input values
+      var data = { "id": parseInt(idValue), "text": textValue };
+
+      // Create a new HTTP request object
+      var xhr = new XMLHttpRequest();
+
+      // Set the HTTP method and URL
+      xhr.open("POST", "/notes", true);
+
+      // Set the Content-Type header to indicate JSON data
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      // Send the JSON data as the request body
+      xhr.send(JSON.stringify(data));
+
+      // reload page
+      setTimeout(function () {
+        window.location.reload();
+      }, 1000);
+    }
+
+    function deleteNoteById(id) {
+      const xhr = new XMLHttpRequest();
+      const url = "/notes/" + id;
+      const method = "DELETE";
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      const body = null;
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Reload the page after successful deletion
+          window.location.reload();
+        } else {
+          console.error("Request failed with status:", xhr.status);
+        }
+      };
+      xhr.open(method, url);
+      xhr.setRequestHeader("Content-Type", headers["Content-Type"]);
+      xhr.send(body);
+    }
+
+    function updateNote(id, updatedText) {
+      const xhr = new XMLHttpRequest();
+      const url = `/notes/${id}`;
+      const method = "PUT";
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      const body = JSON.stringify({
+        "id": parseInt(id), "text": updatedText
+      });
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Reload the page after successful update
+          window.location.reload();
+        } else {
+          console.error("Request failed with status:", xhr.status);
+        }
+      };
+      xhr.open(method, url);
+      xhr.setRequestHeader("Content-Type", headers["Content-Type"]);
+      xhr.send(body);
+    }
+
+  </script>
+</body>
+
+</html>
