@@ -5,10 +5,12 @@ use actix_files::NamedFile;
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::http::{Method, StatusCode};
+use actix_web::middleware::Logger;
 use actix_web::{
     delete, get, post, put, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
     ResponseError, Result,
 };
+use env_logger::Env;
 
 use serde::{Deserialize, Serialize};
 
@@ -204,7 +206,7 @@ async fn main() -> std::io::Result<()> {
             },
         ]),
     });
-
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
     HttpServer::new(move || {
         App::new()
             .app_data(app_state.clone())
@@ -215,6 +217,8 @@ async fn main() -> std::io::Result<()> {
             .service(delete_note)
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(index))
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Agent}i"))
     })
     .bind(("0.0.0.0", 8080))?
     .run()
