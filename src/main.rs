@@ -5,11 +5,11 @@ use actix_files::NamedFile;
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::http::{Method, StatusCode};
+use actix_web::middleware::Logger;
 use actix_web::{
     delete, get, post, put, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
     ResponseError, Result,
 };
-use actix_web::middleware::Logger;
 use env_logger::Env;
 
 use serde::{Deserialize, Serialize};
