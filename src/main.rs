@@ -216,7 +216,7 @@ async fn main() -> std::io::Result<()> {
             .route("/health_check", web::get().to(health_check))
             .route("/", web::get().to(index))
     })
-    .bind(("127.0.0.1", 8000))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }
