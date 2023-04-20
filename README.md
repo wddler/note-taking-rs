@@ -12,16 +12,38 @@ This is an example of a full-stack web application with implemented DevOps pract
 - CI pipeline: automated tests, linting, formatting, and security checks via GitHub Actions.
 - CD pipeline: automated deployment on fly.io
 
+---
+
 Open in browser:
 
 <https://note-taking.fly.dev/>
 
+or
+
 Run in terminal:
 
 `$ cargo run`
+
+or
 
 Run in Docker:
 
 `$ docker build -t note-taking .`
 
 `$ docker run -p 8080:8080 -t note-taking`
+
+Then open `http://localhost:8080/` in browser.
+
+---
+
+### Sample requests
+
+Create note: `$ curl -XPOST localhost:8080/notes -H "Content-Type: application/json" -d '{"id":3, "text":"New note"}'`
+
+Read note: `$ curl -XGET -i localhost:8080/notes/1`
+
+Update note: `$ curl -XPUT localhost:8080/notes/1 -i -H "Content-Type: application/json" -d '{"id":1, "text":"Updated note"}'`
+
+Delete note: `$ curl -XDELETE -i localhost:8080/notes/1`
+
+Read all notes: `$ curl -XGET -i localhost:8080/notes`
